@@ -62,6 +62,7 @@ long lastMsg = 0;
 char msg[50];
 int value = 0;
 bool mqttConfigValid = true;
+bool ringDisabled = false;
 
 
 Match lastMatch;
@@ -93,6 +94,50 @@ String getTimestampString(){
   strftime(buffer,sizeof(buffer),"%Y-%m-%d %H:%M:%S %Z", &timeinfo);
   String datetime = String(buffer);
   return datetime;
+}
+
+bool payloadIsTrue(String payload) {
+  payload.trim();
+  payload.toLowerCase();
+  return payload == "1" || payload == "on" || payload == "true";
+}
+
+bool payloadIsFalse(String payload) {
+  payload.trim();
+  payload.toLowerCase();
+  return payload == "0" || payload == "off" || payload == "false";
+}
+
+bool isWebUiAuthEnabled() {
+  return !settingsManager.getAppSettings().webUiPassword.isEmpty();
+}
+
+bool ensureWebUiAuthenticated(AsyncWebServerRequest *request) {
+  if (!isWebUiAuthEnabled())
+    return true;
+
+  if (!request->authenticate("admin", settingsManager.getAppSettings().webUiPassword.c_str())) {
+    request->requestAuthentication();
+    return false;
+  }
+  return true;
+}
+
+void triggerDoorbell(const String& source) {
+  if (ringDisabled) {
+    notifyClients("Ring trigger ignored (ring is disabled): " + source);
+    return;
+  }
+
+  String mqttRootTopic = settingsManager.getAppSettings().mqttRootTopic;
+  digitalWrite(doorbellOutputPin, HIGH);
+  mqttClient.publish((String(mqttRootTopic) + "/ring").c_str(), "on");
+  mqttClient.publish((String(mqttRootTopic) + "/matchId").c_str(), "-1");
+  mqttClient.publish((String(mqttRootTopic) + "/matchName").c_str(), "");
+  mqttClient.publish((String(mqttRootTopic) + "/matchConfidence").c_str(), "-1");
+  delay(1000);
+  mqttClient.publish((String(mqttRootTopic) + "/ring").c_str(), "off");
+  digitalWrite(doorbellOutputPin, LOW);
 }
 
 /* wait for maintenance mode or timeout 5s */
@@ -132,11 +177,19 @@ String processor(const String& var){
   } else if (var == "MQTT_USERNAME") {
     return settingsManager.getAppSettings().mqttUsername;
   } else if (var == "MQTT_PASSWORD") {
-    return settingsManager.getAppSettings().mqttPassword;
+    if (settingsManager.getAppSettings().mqttPassword.isEmpty())
+      return "";
+    else
+      return "********";
   } else if (var == "MQTT_ROOTTOPIC") {
     return settingsManager.getAppSettings().mqttRootTopic;
   } else if (var == "NTP_SERVER") {
     return settingsManager.getAppSettings().ntpServer;
+  } else if (var == "CONFIG_PASSWORD") {
+    if (settingsManager.getAppSettings().webUiPassword.isEmpty())
+      return "";
+    else
+      return "********";
   }
 
   return String();
@@ -314,10 +367,14 @@ void startWebserver(){
     
     // Route for root / web page
     webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+      if (!ensureWebUiAuthenticated(request))
+        return;
       request->send(SPIFFS, "/index.html", String(), false, processor);
     });
 
     webServer.on("/enroll", HTTP_GET, [](AsyncWebServerRequest *request){
+      if (!ensureWebUiAuthenticated(request))
+        return;
       if(request->hasArg("startEnrollment"))
       {
         enrollId = request->arg("newFingerprintId");
@@ -328,6 +385,8 @@ void startWebserver(){
     });
 
     webServer.on("/editFingerprints", HTTP_GET, [](AsyncWebServerRequest *request){
+      if (!ensureWebUiAuthenticated(request))
+        return;
       if(request->hasArg("selectedFingerprint"))
       {
         if(request->hasArg("btnDelete"))
@@ -348,15 +407,25 @@ void startWebserver(){
     });
 
     webServer.on("/settings", HTTP_GET, [](AsyncWebServerRequest *request){
+      if (!ensureWebUiAuthenticated(request))
+        return;
       if(request->hasArg("btnSaveSettings"))
       {
         Serial.println("Save settings");
-        AppSettings settings = settingsManager.getAppSettings();
+        AppSettings existingSettings = settingsManager.getAppSettings();
+        AppSettings settings = existingSettings;
         settings.mqttServer = request->arg("mqtt_server");
         settings.mqttUsername = request->arg("mqtt_username");
-        settings.mqttPassword = request->arg("mqtt_password");
+        if (request->arg("mqtt_password").equals("********"))
+          settings.mqttPassword = existingSettings.mqttPassword;
+        else
+          settings.mqttPassword = request->arg("mqtt_password");
         settings.mqttRootTopic = request->arg("mqtt_rootTopic");
         settings.ntpServer = request->arg("ntpServer");
+        if (request->arg("config_password").equals("********"))
+          settings.webUiPassword = existingSettings.webUiPassword;
+        else
+          settings.webUiPassword = request->arg("config_password");
         settingsManager.saveAppSettings(settings);
         request->redirect("/");  
         shouldReboot = true;
@@ -367,6 +436,8 @@ void startWebserver(){
 
 
     webServer.on("/pairing", HTTP_GET, [](AsyncWebServerRequest *request){
+      if (!ensureWebUiAuthenticated(request))
+        return;
       if(request->hasArg("btnDoPairing"))
       {
         Serial.println("Do (re)pairing");
@@ -380,6 +451,8 @@ void startWebserver(){
 
 
     webServer.on("/factoryReset", HTTP_GET, [](AsyncWebServerRequest *request){
+      if (!ensureWebUiAuthenticated(request))
+        return;
       if(request->hasArg("btnFactoryReset"))
       {
         notifyClients("Factory reset initiated...");
@@ -402,6 +475,8 @@ void startWebserver(){
 
 
     webServer.on("/deleteAllFingerprints", HTTP_GET, [](AsyncWebServerRequest *request){
+      if (!ensureWebUiAuthenticated(request))
+        return;
       if(request->hasArg("btnDeleteAllFingerprints"))
       {
         notifyClients("Deleting all fingerprints...");
@@ -427,6 +502,8 @@ void startWebserver(){
 
   // common url callbacks
   webServer.on("/reboot", HTTP_GET, [](AsyncWebServerRequest *request){
+    if (!ensureWebUiAuthenticated(request))
+      return;
     request->redirect("/");
     shouldReboot = true;
   });
@@ -437,7 +514,10 @@ void startWebserver(){
 
 
   // Enable Over-the-air updates at http://<IPAddress>/update
-  AsyncElegantOTA.begin(&webServer);
+  if (isWebUiAuthEnabled())
+    AsyncElegantOTA.begin(&webServer, "admin", settingsManager.getAppSettings().webUiPassword.c_str());
+  else
+    AsyncElegantOTA.begin(&webServer);
   
   // Start server
   webServer.begin();
@@ -461,11 +541,38 @@ void mqttCallback(char* topic, byte* message, unsigned int length) {
 
   // Check incomming message for interesting topics
   if (String(topic) == String(settingsManager.getAppSettings().mqttRootTopic) + "/ignoreTouchRing") {
-    if(messageTemp == "on"){
+    if(payloadIsTrue(messageTemp)){
       fingerManager.setIgnoreTouchRing(true);
     }
-    else if(messageTemp == "off"){
+    else if(payloadIsFalse(messageTemp)){
       fingerManager.setIgnoreTouchRing(false);
+    }
+  }
+
+  if (String(topic) == String(settingsManager.getAppSettings().mqttRootTopic) + "/reboot") {
+    if(payloadIsTrue(messageTemp)){
+      notifyClients("MQTT reboot command received.");
+      shouldReboot = true;
+    }
+  }
+
+  if (String(topic) == String(settingsManager.getAppSettings().mqttRootTopic) + "/disableRing") {
+    if(payloadIsTrue(messageTemp)){
+      ringDisabled = true;
+      notifyClients("Doorbell ring is now disabled.");
+      mqttClient.publish((settingsManager.getAppSettings().mqttRootTopic + "/disableRing").c_str(), "on", true);
+    }
+    else if(payloadIsFalse(messageTemp)){
+      ringDisabled = false;
+      notifyClients("Doorbell ring is now enabled.");
+      mqttClient.publish((settingsManager.getAppSettings().mqttRootTopic + "/disableRing").c_str(), "off", true);
+    }
+  }
+
+  if (String(topic) == String(settingsManager.getAppSettings().mqttRootTopic) + "/triggerRing") {
+    if(payloadIsTrue(messageTemp)){
+      notifyClients("MQTT ring trigger received.");
+      triggerDoorbell("mqtt trigger topic");
     }
   }
 
@@ -509,6 +616,10 @@ void connectMqttClient() {
       Serial.println("connected");
       // Subscribe
       mqttClient.subscribe((settingsManager.getAppSettings().mqttRootTopic + "/ignoreTouchRing").c_str(), 1); // QoS = 1 (at least once)
+      mqttClient.subscribe((settingsManager.getAppSettings().mqttRootTopic + "/reboot").c_str(), 1); // QoS = 1 (at least once)
+      mqttClient.subscribe((settingsManager.getAppSettings().mqttRootTopic + "/disableRing").c_str(), 1); // QoS = 1 (at least once)
+      mqttClient.subscribe((settingsManager.getAppSettings().mqttRootTopic + "/triggerRing").c_str(), 1); // QoS = 1 (at least once)
+      mqttClient.publish((settingsManager.getAppSettings().mqttRootTopic + "/disableRing").c_str(), ringDisabled ? "on" : "off", true);
       #ifdef CUSTOM_GPIOS
         mqttClient.subscribe((settingsManager.getAppSettings().mqttRootTopic + "/customOutput1").c_str(), 1); // QoS = 1 (at least once)
         mqttClient.subscribe((settingsManager.getAppSettings().mqttRootTopic + "/customOutput2").c_str(), 1); // QoS = 1 (at least once)
@@ -562,14 +673,8 @@ void doScan()
     case ScanResult::noMatchFound:
       notifyClients(String("No Match Found (Code ") + match.returnCode + ")");
       if (match.scanResult != lastMatch.scanResult) {
-        digitalWrite(doorbellOutputPin, HIGH);
-        mqttClient.publish((String(mqttRootTopic) + "/ring").c_str(), "on");
-        mqttClient.publish((String(mqttRootTopic) + "/matchId").c_str(), "-1");
-        mqttClient.publish((String(mqttRootTopic) + "/matchName").c_str(), "");
-        mqttClient.publish((String(mqttRootTopic) + "/matchConfidence").c_str(), "-1");
+        triggerDoorbell("fingerprint mismatch");
         Serial.println("MQTT message sent: ring the bell!");
-        delay(1000);
-        digitalWrite(doorbellOutputPin, LOW); 
       } else {
         delay(1000); // wait some time before next scan to let the LED blink
       }

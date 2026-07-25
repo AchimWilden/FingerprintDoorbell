@@ -163,7 +163,20 @@ Matching fingerprints (and also ring events) are published as messages to your M
 | fingerprintDoorbell/matchId          | publish   | "-1" by default, if a match was found the value holds the matching id (e.g. "27") for 3s |
 | fingerprintDoorbell/matchName        | publish   | "" by default, if a match was found the value holds the matching name for 3s |
 | fingerprintDoorbell/matchConfidence  | publish   | "" by default, if a match was found the value holds the conficence (number between "1" and "400", 1=low, 400=very high) for 3s |
+| fingerprintDoorbell/disableRing      | publish   | current ring lock state ("on"=disabled, "off"=enabled) |
 | fingerprintDoorbell/ignoreTouchRing  | subscribe | read by FingerprintDoorbell and enables/disables the touch ring (see FAQ below for details) |
+| fingerprintDoorbell/reboot           | subscribe | set to "on" or "1" to trigger reboot |
+| fingerprintDoorbell/disableRing      | subscribe | set to "on"/"1" to disable ring, "off"/"0" to enable ring |
+| fingerprintDoorbell/triggerRing      | subscribe | set to "on" or "1" to trigger a ring event externally |
+
+## Protect Web Configuration
+The settings page now supports an optional password to protect configuration changes.
+
+- Open "Settings" in WebUI
+- Set "Config Password" and save
+- Reboot is required after saving
+- Afterwards WebUI and OTA update are protected with HTTP Basic Auth
+- Username is fixed to `admin`
 
 ## Advanced Actions
 ### Firmware Update

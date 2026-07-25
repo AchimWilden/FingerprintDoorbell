@@ -80,8 +80,16 @@
 	<div class="form-group">
 		<label class="col-md-4 control-label" for="mqtt_password">MQTT Password</label>  
 		<div class="col-md-4">
-		<input id="mqtt_password" name="mqtt_password" type="text" placeholder="Password for connecting to your MQTT Broker" class="form-control input-md" value="%MQTT_PASSWORD%">
+		<input id="mqtt_password" name="mqtt_password" type="password" placeholder="Password for connecting to your MQTT Broker" class="form-control input-md" value="%MQTT_PASSWORD%">
 		<small class="text-muted">Leave empty if your broker is not requiring authentication.</small>		
+		</div>
+	</div>
+
+	<div class="form-group">
+		<label class="col-md-4 control-label" for="config_password">Config Password</label>
+		<div class="col-md-4">
+		<input id="config_password" name="config_password" type="password" placeholder="Optional password for WebUI (user: admin)" class="form-control input-md" value="%CONFIG_PASSWORD%">
+		<small class="text-muted">If set, WebUI and OTA update are protected with HTTP Basic Auth (username: admin).</small>
 		</div>
 	</div>
 
@@ -95,8 +103,12 @@
 			- "%MQTT_ROOTTOPIC%/matchName"<br>
 			- "%MQTT_ROOTTOPIC%/matchConfidence"<br>
 			- "%MQTT_ROOTTOPIC%/lastLogMessage"<br>
+			- "%MQTT_ROOTTOPIC%/disableRing" (state)<br>
 			Subscribed Topics (=read)<br>
-			- "%MQTT_ROOTTOPIC%/ignoreTouchRing"
+			- "%MQTT_ROOTTOPIC%/ignoreTouchRing"<br>
+			- "%MQTT_ROOTTOPIC%/reboot"<br>
+			- "%MQTT_ROOTTOPIC%/disableRing" (on/off, 1/0)<br>
+			- "%MQTT_ROOTTOPIC%/triggerRing" (on/1)
 		</small>
 		</div>
 	</div>
