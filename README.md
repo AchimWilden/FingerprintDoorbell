@@ -13,6 +13,21 @@ If you put your finger on the sensor the system looks for a matching fingerprint
 
   
 
+## Changes in this fork
+This fork is based on the original [FingerprintDoorbell project by frickelzeugs](https://github.com/frickelzeugs/FingerprintDoorbell). The following features are additions or fixes in this fork and are not part of the original upstream version:
+
+- **Protected configuration:** optional HTTP Basic Auth for the WebUI and OTA updates (username `admin`).
+- **MQTT controls:** reboot the device, enable/disable ringing, and trigger a ring event using MQTT topics.
+- **Loop-free ring lock:** the `disableRing` command is no longer echoed back to the same topic, preventing repeated status messages.
+- **Longer event history:** the WebUI keeps the latest 50 log entries in a scrollable panel.
+- **MQTT connection indicator:** the Settings page shows whether the broker is currently connected.
+- **Checkmk status API:** `/api/status` provides read-only JSON without credentials, including health and reasons, uptime, free heap, reset reason, Wi-Fi signal, MQTT state/error, sensor state, ring lock and syslog configuration.
+- **rsyslog forwarding:** optional UDP forwarding of central status messages, configurable from the Settings page.
+- **Settings navigation:** settings are grouped by WebUI, MQTT, system time and rsyslog; the Status JSON endpoint is linked from the main menu.
+- **Build dependency fixes:** PlatformIO dependencies that disappeared from the registry are referenced through available sources.
+
+The firmware version in this fork is `0.5awi`.
+
 ## What do I need?
 - fingerprint reader Grow R503 (available at https://de.aliexpress.com/i/33053783539.html)
 - an ESP32 microcontroller (I would prefer the mini-version, because of it's compact size, e.g. available here https://de.aliexpress.com/item/1005001621844145.html or from any other dealer of your trust)
