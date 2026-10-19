@@ -27,7 +27,7 @@ This fork is based on the original [FingerprintDoorbell project by frickelzeugs]
 - **Settings navigation:** Network Settings and Ring Button Settings are separate pages. Sensor pairing and deleting fingerprints are on the ring page; the Status JSON endpoint is linked from the main menu.
 - **Build dependency fixes:** PlatformIO dependencies that disappeared from the registry are referenced through available sources.
 
-The current firmware version in this fork is `0.5awi.1`.
+The current firmware version in this fork is `0.5awi.2`.
 
 ## What do I need?
 - fingerprint reader Grow R503 (available at https://de.aliexpress.com/i/33053783539.html)
@@ -175,14 +175,22 @@ Matching fingerprints (and also ring events) are published as messages to your M
 
 | MQTT Topic                           | Action    | Values | 
 | ------------------------------------ | --------- | -------- |
-| fingerprintDoorbell/ring             | publish   | "off" by default, on a ring event switching to "on" for 1s |
-| fingerprintDoorbell/matchId          | publish   | "-1" by default, if a match was found the value holds the matching id (e.g. "27") for 3s |
-| fingerprintDoorbell/matchName        | publish   | "" by default, if a match was found the value holds the matching name for 3s |
-| fingerprintDoorbell/matchConfidence  | publish   | "" by default, if a match was found the value holds the conficence (number between "1" and "400", 1=low, 400=very high) for 3s |
+| fingerprintDoorbell/ring             | publish   | Retained; "off" at startup, switches to "on" during a ring event |
+| fingerprintDoorbell/matchId          | publish   | Retained; "-1" at startup, otherwise the last matching ID |
+| fingerprintDoorbell/matchName        | publish   | Retained; empty at startup, otherwise the last matching name |
+| fingerprintDoorbell/matchConfidence  | publish   | Retained; "-1" at startup, otherwise the last confidence (1-400) |
+| fingerprintDoorbell/lastLogMessage   | publish   | Retained; most recent log message |
+| fingerprintDoorbell/status           | publish   | Retained JSON snapshot at connect and every 60 seconds |
+| fingerprintDoorbell/ignoreTouchRing/state | publish | Retained current input state ("on"/"off") |
+| fingerprintDoorbell/disableRing/state | publish | Retained current ring lock state ("on"/"off") |
+| fingerprintDoorbell/triggerRing/state | publish | Retained ring output state ("on"/"off") |
+| fingerprintDoorbell/reboot/state     | publish   | Retained as "ready" or "rebooting" |
 | fingerprintDoorbell/ignoreTouchRing  | subscribe | read by FingerprintDoorbell and enables/disables the touch ring (see FAQ below for details) |
-| fingerprintDoorbell/reboot           | subscribe | set to "on" or "1" to trigger reboot |
+| fingerprintDoorbell/reboot           | subscribe | set to "on" or "1" to trigger reboot; do not retain action commands |
 | fingerprintDoorbell/disableRing      | subscribe | set to "on"/"1" to disable ring, "off"/"0" to enable ring; retained commands are restored after reconnect |
-| fingerprintDoorbell/triggerRing      | subscribe | set to "on" or "1" to trigger a ring event externally |
+| fingerprintDoorbell/triggerRing      | subscribe | set to "on" or "1" to trigger a ring event externally; do not retain action commands |
+
+On each MQTT connection the device publishes an initial snapshot of all output values. State mirrors for command topics use a separate `/state` suffix so commands are never echoed back and cannot cause feedback loops. With `CUSTOM_GPIOS` enabled, the custom input values are also published at startup and when they change.
 
 ## Status and Checkmk
 The Settings page shows the current MQTT connection state. A read-only JSON status endpoint is available at `/api/status`; it requires no password and contains no credentials or passwords. It reports:

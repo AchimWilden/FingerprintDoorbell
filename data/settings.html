@@ -159,11 +159,16 @@
 			- "%MQTT_ROOTTOPIC%/matchName"<br>
 			- "%MQTT_ROOTTOPIC%/matchConfidence"<br>
 			- "%MQTT_ROOTTOPIC%/lastLogMessage"<br>
+			- "%MQTT_ROOTTOPIC%/status" (retained JSON, every 60 seconds)<br>
+			- "%MQTT_ROOTTOPIC%/ignoreTouchRing/state"<br>
+			- "%MQTT_ROOTTOPIC%/disableRing/state"<br>
+			- "%MQTT_ROOTTOPIC%/triggerRing/state"<br>
+			- "%MQTT_ROOTTOPIC%/reboot/state"<br>
 			Subscribed Topics (=read)<br>
 			- "%MQTT_ROOTTOPIC%/ignoreTouchRing"<br>
-			- "%MQTT_ROOTTOPIC%/reboot"<br>
+			- "%MQTT_ROOTTOPIC%/reboot" (send non-retained)<br>
 			- "%MQTT_ROOTTOPIC%/disableRing" (on/1 = disable, off/0 = enable)<br>
-			- "%MQTT_ROOTTOPIC%/triggerRing" (on/1)
+			- "%MQTT_ROOTTOPIC%/triggerRing" (on/1, send non-retained)
 		</small>
 		</div>
 	</div>
