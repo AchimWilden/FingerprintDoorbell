@@ -427,6 +427,23 @@ void FingerprintManager::setIgnoreTouchRing(bool state) {
   }
 }
 
+void FingerprintManager::setRingDisabled(bool state) {
+  if (ringDisabled != state) {
+    ringDisabled = state;
+    setLedRingReady();
+  }
+}
+
+void FingerprintManager::setLedRingSettings(uint8_t normalEffect, uint8_t normalColor, uint8_t ignoreTouchEffect, uint8_t ignoreTouchColor, uint8_t disabledEffect, uint8_t disabledColor) {
+  normalLedEffect = normalEffect;
+  normalLedColor = normalColor;
+  ignoreTouchLedEffect = ignoreTouchEffect;
+  ignoreTouchLedColor = ignoreTouchColor;
+  ringDisabledLedEffect = disabledEffect;
+  ringDisabledLedColor = disabledColor;
+  setLedRingReady();
+}
+
 
 bool FingerprintManager::isRingTouched() {
   if (digitalRead(touchRingPin) == LOW) // LOW = touched. Caution: touchSignal on this pin occour only once (at beginning of touching the ring, not every iteration if you keep your finger on the ring)
@@ -456,10 +473,21 @@ void FingerprintManager::setLedRingWifiConfig() {
 }
 
 void FingerprintManager::setLedRingReady() {
-  if (!ignoreTouchRing)
-    finger.LEDcontrol(FINGERPRINT_LED_BREATHING, 250, FINGERPRINT_LED_BLUE);
-  else
-    finger.LEDcontrol(FINGERPRINT_LED_ON, 0, FINGERPRINT_LED_BLUE); // just an indicator for me to see if touch ring is active or not
+  if (!connected)
+    return;
+
+  uint8_t effect = normalLedEffect;
+  uint8_t color = normalLedColor;
+  if (ringDisabled) {
+    effect = ringDisabledLedEffect;
+    color = ringDisabledLedColor;
+  } else if (ignoreTouchRing) {
+    effect = ignoreTouchLedEffect;
+    color = ignoreTouchLedColor;
+  }
+
+  uint8_t speed = effect == FINGERPRINT_LED_BREATHING ? 250 : 0;
+  finger.LEDcontrol(effect, speed, color);
 }
 
 bool FingerprintManager::deleteAll() {

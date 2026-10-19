@@ -127,6 +127,46 @@ bool ensureWebUiAuthenticated(AsyncWebServerRequest *request) {
   return true;
 }
 
+String getLedEffectOptions(uint8_t selectedEffect) {
+  const uint8_t effects[] = {FINGERPRINT_LED_ON, FINGERPRINT_LED_BREATHING, FINGERPRINT_LED_OFF};
+  const char* labels[] = {"Always on", "Breathing", "Off"};
+  String options;
+  for (size_t index = 0; index < 3; index++) {
+    options += "<option value=\"" + String(effects[index]) + "\"";
+    if (effects[index] == selectedEffect)
+      options += " selected";
+    options += ">" + String(labels[index]) + "</option>";
+  }
+  return options;
+}
+
+String getLedColorOptions(uint8_t selectedColor) {
+  const uint8_t colors[] = {FINGERPRINT_LED_RED, FINGERPRINT_LED_BLUE, FINGERPRINT_LED_PURPLE};
+  const char* labels[] = {"Red", "Blue", "Purple"};
+  String options;
+  for (size_t index = 0; index < 3; index++) {
+    options += "<option value=\"" + String(colors[index]) + "\"";
+    if (colors[index] == selectedColor)
+      options += " selected";
+    options += ">" + String(labels[index]) + "</option>";
+  }
+  return options;
+}
+
+uint8_t parseLedEffect(const String& value, uint8_t fallback) {
+  uint8_t effect = (uint8_t)value.toInt();
+  if (effect == FINGERPRINT_LED_ON || effect == FINGERPRINT_LED_BREATHING || effect == FINGERPRINT_LED_OFF)
+    return effect;
+  return fallback;
+}
+
+uint8_t parseLedColor(const String& value, uint8_t fallback) {
+  uint8_t color = (uint8_t)value.toInt();
+  if (color == FINGERPRINT_LED_RED || color == FINGERPRINT_LED_BLUE || color == FINGERPRINT_LED_PURPLE)
+    return color;
+  return fallback;
+}
+
 void triggerDoorbell(const String& source) {
   if (ringDisabled) {
     notifyClients("Ring trigger ignored (ring is disabled): " + source);
@@ -204,6 +244,18 @@ String processor(const String& var){
     return mqttClient.connected() ? "alert-success" : "alert-danger";
   } else if (var == "MQTT_STATUS_TEXT") {
     return mqttClient.connected() ? "Connected" : "Disconnected";
+  } else if (var == "NORMAL_LED_EFFECT_OPTIONS") {
+    return getLedEffectOptions(settingsManager.getAppSettings().normalLedEffect);
+  } else if (var == "NORMAL_LED_COLOR_OPTIONS") {
+    return getLedColorOptions(settingsManager.getAppSettings().normalLedColor);
+  } else if (var == "IGNORE_TOUCH_LED_EFFECT_OPTIONS") {
+    return getLedEffectOptions(settingsManager.getAppSettings().ignoreTouchLedEffect);
+  } else if (var == "IGNORE_TOUCH_LED_COLOR_OPTIONS") {
+    return getLedColorOptions(settingsManager.getAppSettings().ignoreTouchLedColor);
+  } else if (var == "RING_DISABLED_LED_EFFECT_OPTIONS") {
+    return getLedEffectOptions(settingsManager.getAppSettings().ringDisabledLedEffect);
+  } else if (var == "RING_DISABLED_LED_COLOR_OPTIONS") {
+    return getLedColorOptions(settingsManager.getAppSettings().ringDisabledLedColor);
   }
 
   return String();
@@ -640,6 +692,25 @@ void startWebserver(){
       }
     });
 
+    webServer.on("/ring-settings", HTTP_GET, [](AsyncWebServerRequest *request){
+      if (!ensureWebUiAuthenticated(request))
+        return;
+      if (request->hasArg("btnSaveLedSettings")) {
+        AppSettings settings = settingsManager.getAppSettings();
+        settings.normalLedEffect = parseLedEffect(request->arg("normal_led_effect"), settings.normalLedEffect);
+        settings.normalLedColor = parseLedColor(request->arg("normal_led_color"), settings.normalLedColor);
+        settings.ignoreTouchLedEffect = parseLedEffect(request->arg("ignore_touch_led_effect"), settings.ignoreTouchLedEffect);
+        settings.ignoreTouchLedColor = parseLedColor(request->arg("ignore_touch_led_color"), settings.ignoreTouchLedColor);
+        settings.ringDisabledLedEffect = parseLedEffect(request->arg("ring_disabled_led_effect"), settings.ringDisabledLedEffect);
+        settings.ringDisabledLedColor = parseLedColor(request->arg("ring_disabled_led_color"), settings.ringDisabledLedColor);
+        settingsManager.saveAppSettings(settings);
+        request->redirect("/ring-settings");
+        shouldReboot = true;
+      } else {
+        request->send(SPIFFS, "/ring-settings.html", String(), false, processor);
+      }
+    });
+
 
     webServer.on("/pairing", HTTP_GET, [](AsyncWebServerRequest *request){
       if (!ensureWebUiAuthenticated(request))
@@ -648,9 +719,9 @@ void startWebserver(){
       {
         Serial.println("Do (re)pairing");
         doPairing();
-        request->redirect("/");  
+        request->redirect("/ring-settings");
       } else {
-        request->send(SPIFFS, "/settings.html", String(), false, processor);
+        request->redirect("/ring-settings");
       }
     });
 
@@ -672,10 +743,10 @@ void startWebserver(){
         if (!settingsManager.deleteWifiSettings())
           notifyClients("Wifi settings could not be deleted.");
         
-        request->redirect("/");  
+        request->redirect("/ring-settings");
         shouldReboot = true;
       } else {
-        request->send(SPIFFS, "/settings.html", String(), false, processor);
+        request->redirect("/ring-settings");
       }
     });
 
@@ -771,10 +842,12 @@ void mqttCallback(char* topic, byte* message, unsigned int length) {
   if (String(topic) == String(settingsManager.getAppSettings().mqttRootTopic) + "/disableRing") {
     if(payloadIsTrue(messageTemp) && !ringDisabled){
       ringDisabled = true;
+      fingerManager.setRingDisabled(true);
       notifyClients("Doorbell ring is now disabled.");
     }
     else if(payloadIsFalse(messageTemp) && ringDisabled){
       ringDisabled = false;
+      fingerManager.setRingDisabled(false);
       notifyClients("Doorbell ring is now enabled.");
     }
   }
@@ -952,6 +1025,10 @@ void setup()
   settingsManager.loadAppSettings();
 
   fingerManager.connect();
+  AppSettings ledSettings = settingsManager.getAppSettings();
+  fingerManager.setLedRingSettings(ledSettings.normalLedEffect, ledSettings.normalLedColor,
+                                   ledSettings.ignoreTouchLedEffect, ledSettings.ignoreTouchLedColor,
+                                   ledSettings.ringDisabledLedEffect, ledSettings.ringDisabledLedColor);
   
   if (!checkPairingValid())
     notifyClients("Security issue! Pairing with sensor is invalid. This could potentially be an attack! If the sensor is new or has been replaced by you do a (re)pairing in settings page. MQTT messages regarding matching fingerprints will not been sent until pairing is valid again.");

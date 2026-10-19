@@ -91,7 +91,8 @@
 		  </div>
 		  <ul class="nav navbar-nav">
 			<li><a href="/">Fingerprints</a></li>
-			<li class="active"><a href="#">Settings</a></li>
+			<li class="active"><a href="#">Network Settings</a></li>
+			<li><a href="/ring-settings">Ring Button Settings</a></li>
 			<li><a href="/api/status">Status JSON</a></li>
 		  </ul>
 		</div>
@@ -219,14 +220,12 @@
 	<fieldset>
 	
 	<!-- Form Name -->
-	<legend>Advanced Actions</legend>
+	<legend>Advanced Network Actions</legend>
 
 	<div class="form-group">
 		<label class="col-md-4 control-label" for="btnFirmwareUpdate"></label>
 		<div class="col-md-4">
 			<button id="btnFirmwareUpdate" name="btnFirmwareUpdate" class="btn btn-info" type="submit" formaction="update">Firmware-Update </button>
-			<button id="btnDoPairing" name="btnDoPairing" class="btn btn-warning" type="submit" formaction="pairing">Pairing a new sensor </button>
-			<button id="btnDeleteAllFingerprints" name="btnDeleteAllFingerprints" class="btn btn-danger" type="submit" formaction="deleteAllFingerprints" onclick="return confirm('This will delete all fingerprints. Are you sure you wanna do that?')">Delete all Fingerprints</button>
 			<button id="btnFactoryReset" name="btnFactoryReset" class="btn btn-danger" type="submit" formaction="factoryReset" onclick="return confirm('This will delete all fingerprints, your settings and your WiFi configuration. Are you sure you wanna do that?')">Factory-Reset</button>
 		</div>
 	  </div>

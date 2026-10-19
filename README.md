@@ -21,9 +21,10 @@ This fork is based on the original [FingerprintDoorbell project by frickelzeugs]
 - **Loop-free ring lock:** the `disableRing` command is no longer echoed back to the same topic, preventing repeated status messages.
 - **Longer event history:** the WebUI keeps the latest 50 log entries in a scrollable panel.
 - **MQTT connection indicator:** the Settings page shows whether the broker is currently connected.
+- **Ring button LED profiles:** select effect (always on, breathing or off) and color (red, blue or purple) separately for normal operation, IgnoreTouchRing and disabled-ring states. Wi-Fi setup, error, touch, match and enrollment signals remain fixed and are documented in Ring Button Settings.
 - **Checkmk status API:** `/api/status` provides read-only JSON without credentials, including health and reasons, uptime, free heap, reset reason, Wi-Fi signal, MQTT state/error, sensor state, ring lock and syslog configuration.
 - **rsyslog forwarding:** optional UDP forwarding of central status messages, configurable from the Settings page.
-- **Settings navigation:** settings are grouped by WebUI, MQTT, system time and rsyslog; the Status JSON endpoint is linked from the main menu.
+- **Settings navigation:** Network Settings and Ring Button Settings are separate pages. Sensor pairing and deleting fingerprints are on the ring page; the Status JSON endpoint is linked from the main menu.
 - **Build dependency fixes:** PlatformIO dependencies that disappeared from the registry are referenced through available sources.
 
 The firmware version in this fork is `0.5awi`.

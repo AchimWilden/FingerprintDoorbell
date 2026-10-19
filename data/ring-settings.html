@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ring Button Settings - FingerprintDoorbell</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" charset="utf-8">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+  <style>
+    .form-horizontal { margin-left: 15px; margin-right: 15px; }
+    .settings-section { border-top: 1px solid #ddd; margin-top: 22px; padding-top: 12px; }
+    .settings-section h4 { margin: 0 0 16px; font-weight: bold; }
+    .fixed-signals { max-width: 900px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-inverse">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="/">%HOSTNAME%</a>
+      </div>
+      <ul class="nav navbar-nav">
+        <li><a href="/">Fingerprints</a></li>
+        <li><a href="/settings">Network Settings</a></li>
+        <li class="active"><a href="#">Ring Button Settings</a></li>
+        <li><a href="/api/status">Status JSON</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <form class="form-horizontal" action="/ring-settings">
+    <fieldset>
+      <legend>Ring Button Settings</legend>
+      <p class="text-muted">These profiles control the ready-state LED. The disabled-ring profile has priority over IgnoreTouchRing, which has priority over normal operation.</p>
+
+      <div class="settings-section">
+        <h4>Normal</h4>
+        <div class="form-group">
+          <label class="col-md-4 control-label" for="normal_led_effect">Effect</label>
+          <div class="col-md-4">
+            <select id="normal_led_effect" name="normal_led_effect" class="form-control">%NORMAL_LED_EFFECT_OPTIONS%</select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="col-md-4 control-label" for="normal_led_color">Color</label>
+          <div class="col-md-4">
+            <select id="normal_led_color" name="normal_led_color" class="form-control">%NORMAL_LED_COLOR_OPTIONS%</select>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h4>IgnoreTouchRing enabled</h4>
+        <div class="form-group">
+          <label class="col-md-4 control-label" for="ignore_touch_led_effect">Effect</label>
+          <div class="col-md-4">
+            <select id="ignore_touch_led_effect" name="ignore_touch_led_effect" class="form-control">%IGNORE_TOUCH_LED_EFFECT_OPTIONS%</select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="col-md-4 control-label" for="ignore_touch_led_color">Color</label>
+          <div class="col-md-4">
+            <select id="ignore_touch_led_color" name="ignore_touch_led_color" class="form-control">%IGNORE_TOUCH_LED_COLOR_OPTIONS%</select>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h4>Doorbell disabled</h4>
+        <div class="form-group">
+          <label class="col-md-4 control-label" for="ring_disabled_led_effect">Effect</label>
+          <div class="col-md-4">
+            <select id="ring_disabled_led_effect" name="ring_disabled_led_effect" class="form-control">%RING_DISABLED_LED_EFFECT_OPTIONS%</select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="col-md-4 control-label" for="ring_disabled_led_color">Color</label>
+          <div class="col-md-4">
+            <select id="ring_disabled_led_color" name="ring_disabled_led_color" class="form-control">%RING_DISABLED_LED_COLOR_OPTIONS%</select>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section fixed-signals">
+        <h4>Fixed sensor indications</h4>
+        <ul>
+          <li>Wi-Fi configuration: breathing red</li>
+          <li>Sensor error: solid red</li>
+          <li>Touch detected while scanning: flashing red</li>
+          <li>Fingerprint match: solid purple</li>
+          <li>Enrollment: flashing purple while waiting; solid purple means lift your finger</li>
+        </ul>
+        <p class="text-muted">These signals are fixed and temporarily override the ready-state profiles above.</p>
+      </div>
+
+      <div class="form-group settings-section">
+        <label class="col-md-4 control-label" for="btnSaveLedSettings"></label>
+        <div class="col-md-4">
+          <button id="btnSaveLedSettings" name="btnSaveLedSettings" value="1" class="btn btn-success">Save and Restart</button>
+        </div>
+      </div>
+    </fieldset>
+  </form>
+
+  <form class="form-horizontal" action="/pairing">
+    <fieldset>
+      <legend>Sensor Actions</legend>
+      <div class="form-group">
+        <label class="col-md-4 control-label" for="btnDoPairing">Pairing</label>
+        <div class="col-md-4">
+          <button id="btnDoPairing" name="btnDoPairing" value="1" class="btn btn-warning" type="submit">Pair a new sensor</button>
+        </div>
+      </div>
+    </fieldset>
+  </form>
+
+  <form class="form-horizontal" action="/deleteAllFingerprints">
+    <div class="form-group">
+      <label class="col-md-4 control-label" for="btnDeleteAllFingerprints">Fingerprints</label>
+      <div class="col-md-4">
+        <button id="btnDeleteAllFingerprints" name="btnDeleteAllFingerprints" value="1" class="btn btn-danger" type="submit" onclick="return confirm('This will delete all fingerprints. Are you sure?')">Delete all fingerprints</button>
+      </div>
+    </div>
+  </form>
+
+  <nav class="navbar navbar-default">
+    <div class="container-fluid">
+      <p class="navbar-text">FingerprintDoorbell, Version %VERSIONINFO%</p>
+    </div>
+  </nav>
+</body>
+</html>
