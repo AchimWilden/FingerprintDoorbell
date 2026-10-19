@@ -22,6 +22,10 @@ bool SettingsManager::loadAppSettings() {
         appSettings.mqttPassword = preferences.getString("mqttPassword", String(""));
         appSettings.mqttRootTopic = preferences.getString("mqttRootTopic", String("fingerprintDoorbell"));
         appSettings.ntpServer = preferences.getString("ntpServer", String("pool.ntp.org"));
+        appSettings.webUiPassword = preferences.getString("webUiPassword", String(""));
+        appSettings.syslogEnabled = preferences.getBool("syslogEnabled", false);
+        appSettings.syslogServer = preferences.getString("syslogServer", String(""));
+        appSettings.syslogPort = preferences.getUShort("syslogPort", 514);
         appSettings.sensorPin = preferences.getString("sensorPin", "00000000");
         appSettings.sensorPairingCode = preferences.getString("pairingCode", "");
         appSettings.sensorPairingValid = preferences.getBool("pairingValid", false);
@@ -49,6 +53,10 @@ void SettingsManager::saveAppSettings() {
     preferences.putString("mqttPassword", appSettings.mqttPassword);
     preferences.putString("mqttRootTopic", appSettings.mqttRootTopic);
     preferences.putString("ntpServer", appSettings.ntpServer);
+    preferences.putString("webUiPassword", appSettings.webUiPassword);
+    preferences.putBool("syslogEnabled", appSettings.syslogEnabled);
+    preferences.putString("syslogServer", appSettings.syslogServer);
+    preferences.putUShort("syslogPort", appSettings.syslogPort);
     preferences.putString("sensorPin", appSettings.sensorPin);
     preferences.putString("pairingCode", appSettings.sensorPairingCode);
     preferences.putBool("pairingValid", appSettings.sensorPairingValid);

@@ -10,6 +10,8 @@
 	.alert-custom{
 		background-color:#cecece;
 		color:rgb(0, 0, 0);
+		max-height: 240px;
+		overflow-y: auto;
 	}
 	.form-horizontal{
 		margin-left: 15px;
@@ -35,7 +37,11 @@
 			// event is fired when a new message from server was received
 			source.addEventListener('message', function(e) {
 				console.log("message", e.data);
-				document.getElementById('logMessages').innerHTML = event.data;
+				var logMessages = document.getElementById('logMessages');
+				var wasAtBottom = logMessages.scrollHeight - logMessages.scrollTop <= logMessages.clientHeight + 20;
+				logMessages.innerHTML = e.data;
+				if (wasAtBottom)
+					logMessages.scrollTop = logMessages.scrollHeight;
 			}, false);
 
 			// event is fired when server side fingerlist was changed (e.g. enrollment of new finger)
@@ -67,6 +73,7 @@
 		  <ul class="nav navbar-nav">
 			<li class="active"><a href="#">Fingerprints</a></li>
 			<li><a href="settings">Settings</a></li>
+			<li><a href="/api/status">Status JSON</a></li>
 		  </ul>
 		</div>
 	</nav>

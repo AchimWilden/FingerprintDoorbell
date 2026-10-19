@@ -6,12 +6,27 @@ It's more or less a doorbell with the ability to scan finger prints or a fingerp
 <img  src="https://raw.githubusercontent.com/frickelzeugs/FingerprintDoorbell/master/doc/images/doorbell-sample.jpg"  width="400">
 
 <img  src="https://raw.githubusercontent.com/frickelzeugs/FingerprintDoorbell/master/doc/images/web-manage.png"  width="600">
-<img  src="https://raw.githubusercontent.com/frickelzeugs/FingerprintDoorbell/master/doc/images/web-settings.png"  width="600">
+<img src="doc/images/web-settings.png" width="600" alt="Updated FingerprintDoorbell settings page">
 
 ## How does it work?
 If you put your finger on the sensor the system looks for a matching fingerprint. If it doesn't find one, it rings the bell (MQTT message is published and an GPIO pin is set to high). If a match was found, the matching finger ID together with a name and confidence will be published as MQTT messagage. In combination with a home automation solution (like OpenHAB, ioBroker, Home Assistant...) you can then trigger your door opener or smart lock. You can also define actions depending on the finger that was detected, like left thumb opens front door, right thumb opens garage, middle finger...
 
   
+
+## Changes in this fork
+This fork is based on the original [FingerprintDoorbell project by frickelzeugs](https://github.com/frickelzeugs/FingerprintDoorbell). The following features are additions or fixes in this fork and are not part of the original upstream version:
+
+- **Protected configuration:** optional HTTP Basic Auth for the WebUI and OTA updates (username `admin`).
+- **MQTT controls:** reboot the device, enable/disable ringing, and trigger a ring event using MQTT topics.
+- **Loop-free ring lock:** the `disableRing` command is no longer echoed back to the same topic, preventing repeated status messages.
+- **Longer event history:** the WebUI keeps the latest 50 log entries in a scrollable panel.
+- **MQTT connection indicator:** the Settings page shows whether the broker is currently connected.
+- **Checkmk status API:** `/api/status` provides read-only JSON without credentials, including health and reasons, uptime, free heap, reset reason, Wi-Fi signal, MQTT state/error, sensor state, ring lock and syslog configuration.
+- **rsyslog forwarding:** optional UDP forwarding of central status messages, configurable from the Settings page.
+- **Settings navigation:** settings are grouped by WebUI, MQTT, system time and rsyslog; the Status JSON endpoint is linked from the main menu.
+- **Build dependency fixes:** PlatformIO dependencies that disappeared from the registry are referenced through available sources.
+
+The firmware version in this fork is `0.5awi`.
 
 ## What do I need?
 - fingerprint reader Grow R503 (available at https://de.aliexpress.com/i/33053783539.html)
@@ -164,6 +179,32 @@ Matching fingerprints (and also ring events) are published as messages to your M
 | fingerprintDoorbell/matchName        | publish   | "" by default, if a match was found the value holds the matching name for 3s |
 | fingerprintDoorbell/matchConfidence  | publish   | "" by default, if a match was found the value holds the conficence (number between "1" and "400", 1=low, 400=very high) for 3s |
 | fingerprintDoorbell/ignoreTouchRing  | subscribe | read by FingerprintDoorbell and enables/disables the touch ring (see FAQ below for details) |
+| fingerprintDoorbell/reboot           | subscribe | set to "on" or "1" to trigger reboot |
+| fingerprintDoorbell/disableRing      | subscribe | set to "on"/"1" to disable ring, "off"/"0" to enable ring; retained commands are restored after reconnect |
+| fingerprintDoorbell/triggerRing      | subscribe | set to "on" or "1" to trigger a ring event externally |
+
+## Status and Checkmk
+The Settings page shows the current MQTT connection state. A read-only JSON status endpoint is available at `/api/status`; it requires no password and contains no credentials or passwords. It reports:
+
+- overall `health.status` (`OK`, `WARN` or `CRIT`) and `health.reasons`
+- version, hostname, mode, uptime, free heap and reset reason
+- Wi-Fi connection, IP, RSSI and a signal-quality category
+- MQTT configured/connected state, client state code/name and last connection error
+- fingerprint sensor state and ring lock state
+- syslog enabled/configured state, destination IP, UDP port and transport
+
+Health is `CRIT` when Wi-Fi or the fingerprint sensor is disconnected, or when a configured MQTT broker is disconnected. It is `WARN` when MQTT is not configured, the Wi-Fi signal is weak (RSSI at or below -75 dBm), or enabled syslog settings are invalid.
+
+Example: `http://fingerprintdoorbell/api/status`
+
+## Protect Web Configuration
+The settings page now supports an optional password to protect configuration changes.
+
+- Open "Settings" in WebUI
+- Set "Config Password" and save
+- Reboot is required after saving
+- Afterwards WebUI and OTA update are protected with HTTP Basic Auth
+- Username is fixed to `admin`
 
 ## Advanced Actions
 ### Firmware Update
@@ -199,3 +240,6 @@ If your sensor is mounted in a dry environment and cannot be hit by rain you can
 This ring is a capacitive touch sensor that works similar to the touch display of your smartphone. And if you may know touch displays and rain drops are not best friends, because they can lead to false inputs. This will usually be a problem if your sensor is mounted in a place exposed to rain and even if it's mounted under the roof overhang it may be hit by horizontal rain during a storm and causing false ring events. And believe me: your wife will not be happy if the storm rings on your door at 3 AM ;-)
 
 So after this experience I could have added an option to disable this ring permanent in the settings but I decided to go another way and make this option conditional. Why? Because in >95% of the cases I really want this high sensitivity of the sensor, just not on stormy and rainy days. Fortunately I already had the current weather conditions available in my smart home via a rain sensor. So I added the MQTT topic "fingerprintDoorbell/ignoreTouchRing" which can be set to "on" or "off". In my case OpenHAB sets this value to "on" when it's raining and wind speed is over a certain level. Since then I have had no more problems with disturbing the peace at night.
+
+## Acknowledgements
+Many thanks to Tobias ("Frickelzeugs") for creating this wonderful project, which has been installed on the wall of my home and in daily use for years. I am also grateful for nearly ten years as colleagues, countless coffees in the kitchen, and all the inspiring project ideas we have exchanged along the way.
