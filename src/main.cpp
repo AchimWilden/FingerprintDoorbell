@@ -17,7 +17,7 @@
 
 enum class Mode { scan, enroll, wificonfig, maintenance };
 
-const char* VersionInfo = "0.5awi";
+const char* VersionInfo = "0.5awi.1";
 
 // ===================================================================================================================
 // Caution: below are not the credentials for connecting to your home network, they are for the Access Point mode!!!
@@ -297,6 +297,13 @@ const char* getModeName() {
   return "unknown";
 }
 
+const char* getRingModeName(bool disabled, bool ignoreTouchRing) {
+  if (disabled && ignoreTouchRing) return "disabled_ignore_touch_ring";
+  if (disabled) return "disabled";
+  if (ignoreTouchRing) return "ignore_touch_ring";
+  return "normal";
+}
+
 const char* getWifiSignalQuality(int rssi) {
   if (rssi >= -50) return "excellent";
   if (rssi >= -60) return "good";
@@ -355,6 +362,7 @@ String buildStatusJson() {
   bool mqttConfigured = !appSettings.mqttServer.isEmpty();
   bool mqttConnected = mqttClient.connected();
   bool sensorConnected = fingerManager.connected;
+  bool ignoreTouchRing = fingerManager.isIgnoreTouchRing();
   int wifiRssi = wifiConnected ? WiFi.RSSI() : 0;
   bool weakWifiSignal = wifiConnected && wifiRssi <= -75;
   IPAddress syslogIp;
@@ -375,6 +383,8 @@ String buildStatusJson() {
   json += escapeJsonString(wifiSettings.hostname);
   json += "\",\"mode\":\"";
   json += getModeName();
+  json += "\",\"ringMode\":\"";
+  json += getRingModeName(ringDisabled, ignoreTouchRing);
   json += "\",\"uptimeSeconds\":";
   json += String(millis() / 1000);
   json += ",\"health\":{\"status\":\"";
@@ -423,6 +433,8 @@ String buildStatusJson() {
   json += sensorConnected ? "true" : "false";
   json += ",\"ringDisabled\":";
   json += ringDisabled ? "true" : "false";
+  json += ",\"ignoreTouchRing\":";
+  json += ignoreTouchRing ? "true" : "false";
   json += "}";
   return json;
 }
