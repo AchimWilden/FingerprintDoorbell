@@ -10,6 +10,22 @@
 	.alert-custom{
 		background-color:#cecece;
 		color:rgb(0, 0, 0);
+		max-height: 240px;
+		overflow-y: auto;
+	}
+	.mqtt-status{
+		margin-bottom: 0;
+		padding: 6px 12px;
+		font-weight: bold;
+	}
+	.settings-section{
+		border-top: 1px solid #ddd;
+		margin-top: 22px;
+		padding-top: 12px;
+	}
+	.settings-section h4{
+		margin: 0 0 16px;
+		font-weight: bold;
 	}
 	.form-horizontal{
 		margin-left: 15px;
@@ -35,10 +51,37 @@
 			// event is fired when a new message from server was received
 			source.addEventListener('message', function(e) {
 				console.log("message", e.data);
-				document.getElementById('logMessages').innerHTML = event.data;
+				var logMessages = document.getElementById('logMessages');
+				var wasAtBottom = logMessages.scrollHeight - logMessages.scrollTop <= logMessages.clientHeight + 20;
+				logMessages.innerHTML = e.data;
+				if (wasAtBottom)
+					logMessages.scrollTop = logMessages.scrollHeight;
 			}, false);
 
 		}
+
+		function refreshMqttStatus() {
+			fetch('/api/status', {cache: 'no-store'})
+				.then(function(response) {
+					if (!response.ok)
+						throw new Error('Status request failed');
+					return response.json();
+				})
+				.then(function(status) {
+					var indicator = document.getElementById('mqttConnectionStatus');
+					var connected = status.mqtt && status.mqtt.connected === true;
+					indicator.className = 'alert mqtt-status ' + (connected ? 'alert-success' : 'alert-danger');
+					indicator.textContent = connected ? 'Connected' : 'Disconnected';
+				})
+				.catch(function() {
+					var indicator = document.getElementById('mqttConnectionStatus');
+					indicator.className = 'alert mqtt-status alert-danger';
+					indicator.textContent = 'Status unavailable';
+				});
+		}
+
+		window.addEventListener('load', refreshMqttStatus);
+		window.setInterval(refreshMqttStatus, 10000);
     </script>
 
 	<nav class="navbar navbar-inverse">
@@ -49,6 +92,7 @@
 		  <ul class="nav navbar-nav">
 			<li><a href="/">Fingerprints</a></li>
 			<li class="active"><a href="#">Settings</a></li>
+			<li><a href="/api/status">Status JSON</a></li>
 		  </ul>
 		</div>
 	</nav>
@@ -60,6 +104,25 @@
 
 	<!-- Form Name -->
 	<legend>Settings</legend>
+	<div class="settings-section">
+		<h4>Web Interface</h4>
+		<div class="form-group">
+			<label class="col-md-4 control-label" for="config_password">Config Password</label>
+			<div class="col-md-4">
+			<input id="config_password" name="config_password" type="password" placeholder="Optional password for WebUI (user: admin)" class="form-control input-md" value="%CONFIG_PASSWORD%">
+			<small class="text-muted">If set, WebUI and OTA update are protected with HTTP Basic Auth (username: admin).</small>
+			</div>
+		</div>
+	</div>
+
+	<div class="settings-section">
+	<h4>MQTT</h4>
+	<div class="form-group">
+		<label class="col-md-4 control-label">MQTT Broker status</label>
+		<div class="col-md-4">
+			<div id="mqttConnectionStatus" class="alert mqtt-status %MQTT_STATUS_CLASS%" role="status">%MQTT_STATUS_TEXT%</div>
+		</div>
+	</div>
 
 	<!-- Text input-->
 	<div class="form-group">
@@ -86,14 +149,6 @@
 	</div>
 
 	<div class="form-group">
-		<label class="col-md-4 control-label" for="config_password">Config Password</label>
-		<div class="col-md-4">
-		<input id="config_password" name="config_password" type="password" placeholder="Optional password for WebUI (user: admin)" class="form-control input-md" value="%CONFIG_PASSWORD%">
-		<small class="text-muted">If set, WebUI and OTA update are protected with HTTP Basic Auth (username: admin).</small>
-		</div>
-	</div>
-
-	<div class="form-group">
 		<label class="col-md-4 control-label" for="mqtt_rootTopic">MQTT Root Topic</label>  
 		<div class="col-md-4">
 		<input id="mqtt_rootTopic" name="mqtt_rootTopic" type="text" placeholder="Root topic where FingerprintDoorbell publishes its messages" class="form-control input-md" value="%MQTT_ROOTTOPIC%" required>
@@ -103,21 +158,49 @@
 			- "%MQTT_ROOTTOPIC%/matchName"<br>
 			- "%MQTT_ROOTTOPIC%/matchConfidence"<br>
 			- "%MQTT_ROOTTOPIC%/lastLogMessage"<br>
-			- "%MQTT_ROOTTOPIC%/disableRing" (state)<br>
 			Subscribed Topics (=read)<br>
 			- "%MQTT_ROOTTOPIC%/ignoreTouchRing"<br>
 			- "%MQTT_ROOTTOPIC%/reboot"<br>
-			- "%MQTT_ROOTTOPIC%/disableRing" (on/off, 1/0)<br>
+			- "%MQTT_ROOTTOPIC%/disableRing" (on/1 = disable, off/0 = enable)<br>
 			- "%MQTT_ROOTTOPIC%/triggerRing" (on/1)
 		</small>
 		</div>
 	</div>
+	</div>
 
+	<div class="settings-section">
+	<h4>System Time</h4>
 	<div class="form-group">
 		<label class="col-md-4 control-label" for="ntpServer">NTP Server</label>  
 		<div class="col-md-4">
 		<input id="ntpServer" name="ntpServer" type="text" placeholder="URL to NTP server" class="form-control input-md" value="%NTP_SERVER%">
 		<small class="text-muted">Used for timestamps in log panel. If you don't specify any, time will be always null.</small>		
+		</div>
+	</div>
+	</div>
+
+	<div class="settings-section">
+	<h4>rsyslog</h4>
+	<div class="form-group">
+		<label class="col-md-4 control-label" for="syslog_enabled">Forward logs to rsyslog</label>
+		<div class="col-md-4">
+		<label><input id="syslog_enabled" name="syslog_enabled" type="checkbox" value="on" %SYSLOG_ENABLED%> Active</label>
+		</div>
+	</div>
+	</div>
+
+	<div class="form-group">
+		<label class="col-md-4 control-label" for="syslog_server">Syslog Server IP</label>
+		<div class="col-md-4">
+		<input id="syslog_server" name="syslog_server" type="text" placeholder="e.g. 10.10.20.10" class="form-control input-md" value="%SYSLOG_SERVER%">
+		</div>
+	</div>
+
+	<div class="form-group">
+		<label class="col-md-4 control-label" for="syslog_port">Syslog UDP Port</label>
+		<div class="col-md-4">
+		<input id="syslog_port" name="syslog_port" type="number" min="1" max="65535" class="form-control input-md" value="%SYSLOG_PORT%">
+		<small class="text-muted">Default: 514. Only central status messages are forwarded, using UDP.</small>
 		</div>
 	</div>
 
