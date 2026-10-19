@@ -27,7 +27,7 @@ This fork is based on the original [FingerprintDoorbell project by frickelzeugs]
 - **Settings navigation:** Network Settings and Ring Button Settings are separate pages. Sensor pairing and deleting fingerprints are on the ring page; the Status JSON endpoint is linked from the main menu.
 - **Build dependency fixes:** PlatformIO dependencies that disappeared from the registry are referenced through available sources.
 
-The firmware version in this fork is `0.5awi`.
+The current firmware version in this fork is `0.5awi.1`.
 
 ## What do I need?
 - fingerprint reader Grow R503 (available at https://de.aliexpress.com/i/33053783539.html)
@@ -188,10 +188,10 @@ Matching fingerprints (and also ring events) are published as messages to your M
 The Settings page shows the current MQTT connection state. A read-only JSON status endpoint is available at `/api/status`; it requires no password and contains no credentials or passwords. It reports:
 
 - overall `health.status` (`OK`, `WARN` or `CRIT`) and `health.reasons`
-- version, hostname, mode, uptime, free heap and reset reason
+- version, hostname, device `mode` (`scan`, `enroll`, `wifi_config`, `maintenance`), uptime, free heap and reset reason
 - Wi-Fi connection, IP, RSSI and a signal-quality category
 - MQTT configured/connected state, client state code/name and last connection error
-- fingerprint sensor state and ring lock state
+- fingerprint sensor state, `ringDisabled`, `ignoreTouchRing`, and combined `ringMode` (`normal`, `ignore_touch_ring`, `disabled`, `disabled_ignore_touch_ring`). The existing `mode` remains the device operation (`scan`, `enroll`, `wifi_config`, or `maintenance`).
 - syslog enabled/configured state, destination IP, UDP port and transport
 
 Health is `CRIT` when Wi-Fi or the fingerprint sensor is disconnected, or when a configured MQTT broker is disconnected. It is `WARN` when MQTT is not configured, the Wi-Fi signal is weak (RSSI at or below -75 dBm), or enabled syslog settings are invalid.

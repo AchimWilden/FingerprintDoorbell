@@ -427,6 +427,10 @@ void FingerprintManager::setIgnoreTouchRing(bool state) {
   }
 }
 
+bool FingerprintManager::isIgnoreTouchRing() const {
+  return ignoreTouchRing;
+}
+
 void FingerprintManager::setRingDisabled(bool state) {
   if (ringDisabled != state) {
     ringDisabled = state;
