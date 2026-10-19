@@ -17,7 +17,7 @@
 
 enum class Mode { scan, enroll, wificonfig, maintenance };
 
-const char* VersionInfo = "0.5awi.1";
+const char* VersionInfo = "0.5awi.2";
 
 // ===================================================================================================================
 // Caution: below are not the credentials for connecting to your home network, they are for the Access Point mode!!!
@@ -67,6 +67,14 @@ int value = 0;
 bool mqttConfigValid = true;
 bool ringDisabled = false;
 String mqttLastError;
+String currentLastLogMessage;
+unsigned long lastMqttStatusPublishMillis = 0;
+const unsigned long mqttStatusPublishIntervalMillis = 60000ul;
+
+bool publishMqttValue(const String& topicSuffix, const String& payload, bool retained = true);
+void publishMqttControlStates();
+void publishMqttStatus();
+void publishMqttInitialState();
 
 
 Match lastMatch;
@@ -169,18 +177,20 @@ uint8_t parseLedColor(const String& value, uint8_t fallback) {
 
 void triggerDoorbell(const String& source) {
   if (ringDisabled) {
+    publishMqttValue("triggerRing/state", "off");
     notifyClients("Ring trigger ignored (ring is disabled): " + source);
     return;
   }
 
-  String mqttRootTopic = settingsManager.getAppSettings().mqttRootTopic;
+  publishMqttValue("triggerRing/state", "on");
   digitalWrite(doorbellOutputPin, HIGH);
-  mqttClient.publish((String(mqttRootTopic) + "/ring").c_str(), "on");
-  mqttClient.publish((String(mqttRootTopic) + "/matchId").c_str(), "-1");
-  mqttClient.publish((String(mqttRootTopic) + "/matchName").c_str(), "");
-  mqttClient.publish((String(mqttRootTopic) + "/matchConfidence").c_str(), "-1");
+  publishMqttValue("ring", "on");
+  publishMqttValue("matchId", "-1");
+  publishMqttValue("matchName", "");
+  publishMqttValue("matchConfidence", "-1");
   delay(1000);
-  mqttClient.publish((String(mqttRootTopic) + "/ring").c_str(), "off");
+  publishMqttValue("ring", "off");
+  publishMqttValue("triggerRing/state", "off");
   digitalWrite(doorbellOutputPin, LOW);
 }
 
@@ -439,6 +449,47 @@ String buildStatusJson() {
   return json;
 }
 
+bool publishMqttValue(const String& topicSuffix, const String& payload, bool retained) {
+  if (!mqttClient.connected())
+    return false;
+  String topic = settingsManager.getAppSettings().mqttRootTopic + "/" + topicSuffix;
+  return mqttClient.publish(topic.c_str(), payload.c_str(), retained);
+}
+
+void publishMqttControlStates() {
+  publishMqttValue("ignoreTouchRing/state", fingerManager.isIgnoreTouchRing() ? "on" : "off");
+  publishMqttValue("disableRing/state", ringDisabled ? "on" : "off");
+  #ifdef CUSTOM_GPIOS
+    publishMqttValue("customOutput1/state", digitalRead(customOutput1) == HIGH ? "on" : "off");
+    publishMqttValue("customOutput2/state", digitalRead(customOutput2) == HIGH ? "on" : "off");
+  #endif
+}
+
+void publishMqttStatus() {
+  publishMqttValue("status", buildStatusJson());
+  lastMqttStatusPublishMillis = millis();
+}
+
+void publishMqttInitialState() {
+  publishMqttValue("ring", "off");
+  publishMqttValue("matchId", "-1");
+  publishMqttValue("matchName", "");
+  publishMqttValue("matchConfidence", "-1");
+  publishMqttValue("lastLogMessage", currentLastLogMessage);
+  publishMqttValue("triggerRing/state", "off");
+  publishMqttValue("reboot/state", "ready");
+  publishMqttControlStates();
+
+  #ifdef CUSTOM_GPIOS
+    customInput1Value = digitalRead(customInput1) == HIGH;
+    customInput2Value = digitalRead(customInput2) == HIGH;
+    publishMqttValue("customInput1", customInput1Value ? "on" : "off");
+    publishMqttValue("customInput2", customInput2Value ? "on" : "off");
+  #endif
+
+  publishMqttStatus();
+}
+
 void sendSyslogMessage(const String& message) {
   AppSettings appSettings = settingsManager.getAppSettings();
   if (!appSettings.syslogEnabled || WiFi.status() != WL_CONNECTED)
@@ -463,14 +514,14 @@ void sendSyslogMessage(const String& message) {
 
 // send LastMessage to websocket clients
 void notifyClients(String message) {
+  currentLastLogMessage = message;
   String messageWithTimestamp = "[" + getTimestampString() + "]: " + message;
   Serial.println(messageWithTimestamp);
   addLogMessage(messageWithTimestamp);
   events.send(getLogMessagesAsHtml().c_str(),"message",millis(),1000);
   sendSyslogMessage(message);
   
-  String mqttRootTopic = settingsManager.getAppSettings().mqttRootTopic;
-  mqttClient.publish((String(mqttRootTopic) + "/lastLogMessage").c_str(), message.c_str());
+  publishMqttValue("lastLogMessage", message);
 }
 
 void updateClientsFingerlist(String fingerlist) {
@@ -838,15 +889,20 @@ void mqttCallback(char* topic, byte* message, unsigned int length) {
   if (String(topic) == String(settingsManager.getAppSettings().mqttRootTopic) + "/ignoreTouchRing") {
     if(payloadIsTrue(messageTemp)){
       fingerManager.setIgnoreTouchRing(true);
+      publishMqttControlStates();
+      publishMqttStatus();
     }
     else if(payloadIsFalse(messageTemp)){
       fingerManager.setIgnoreTouchRing(false);
+      publishMqttControlStates();
+      publishMqttStatus();
     }
   }
 
   if (String(topic) == String(settingsManager.getAppSettings().mqttRootTopic) + "/reboot") {
     if(payloadIsTrue(messageTemp)){
       notifyClients("MQTT reboot command received.");
+      publishMqttValue("reboot/state", "rebooting");
       shouldReboot = true;
     }
   }
@@ -855,11 +911,15 @@ void mqttCallback(char* topic, byte* message, unsigned int length) {
     if(payloadIsTrue(messageTemp) && !ringDisabled){
       ringDisabled = true;
       fingerManager.setRingDisabled(true);
+      publishMqttControlStates();
+      publishMqttStatus();
       notifyClients("Doorbell ring is now disabled.");
     }
     else if(payloadIsFalse(messageTemp) && ringDisabled){
       ringDisabled = false;
       fingerManager.setRingDisabled(false);
+      publishMqttControlStates();
+      publishMqttStatus();
       notifyClients("Doorbell ring is now enabled.");
     }
   }
@@ -879,6 +939,7 @@ void mqttCallback(char* topic, byte* message, unsigned int length) {
       else if(messageTemp == "off"){
         digitalWrite(customOutput1, LOW); 
       }
+      publishMqttControlStates();
     }
     if (String(topic) == String(settingsManager.getAppSettings().mqttRootTopic) + "/customOutput2") {
       if(messageTemp == "on"){
@@ -887,6 +948,7 @@ void mqttCallback(char* topic, byte* message, unsigned int length) {
       else if(messageTemp == "off"){
         digitalWrite(customOutput2, LOW); 
       }
+      publishMqttControlStates();
     }
   #endif  
 
@@ -919,7 +981,7 @@ void connectMqttClient() {
         mqttClient.subscribe((settingsManager.getAppSettings().mqttRootTopic + "/customOutput1").c_str(), 1); // QoS = 1 (at least once)
         mqttClient.subscribe((settingsManager.getAppSettings().mqttRootTopic + "/customOutput2").c_str(), 1); // QoS = 1 (at least once)
       #endif
-
+      publishMqttInitialState();
 
 
     } else {
@@ -946,20 +1008,20 @@ void doScan()
       // standard case, occurs every iteration when no finger touchs the sensor
       if (match.scanResult != lastMatch.scanResult) {
         Serial.println("no finger");
-        mqttClient.publish((String(mqttRootTopic) + "/ring").c_str(), "off");
-        mqttClient.publish((String(mqttRootTopic) + "/matchId").c_str(), "-1");
-        mqttClient.publish((String(mqttRootTopic) + "/matchName").c_str(), "");
-        mqttClient.publish((String(mqttRootTopic) + "/matchConfidence").c_str(), "-1");
+        publishMqttValue("ring", "off");
+        publishMqttValue("matchId", "-1");
+        publishMqttValue("matchName", "");
+        publishMqttValue("matchConfidence", "-1");
       }
       break; 
     case ScanResult::matchFound:
       notifyClients( String("Match Found: ") + match.matchId + " - " + match.matchName  + " with confidence of " + match.matchConfidence );
       if (match.scanResult != lastMatch.scanResult) {
         if (checkPairingValid()) {
-          mqttClient.publish((String(mqttRootTopic) + "/ring").c_str(), "off");
-          mqttClient.publish((String(mqttRootTopic) + "/matchId").c_str(), String(match.matchId).c_str());
-          mqttClient.publish((String(mqttRootTopic) + "/matchName").c_str(), match.matchName.c_str());
-          mqttClient.publish((String(mqttRootTopic) + "/matchConfidence").c_str(), String(match.matchConfidence).c_str());
+          publishMqttValue("ring", "off");
+          publishMqttValue("matchId", String(match.matchId));
+          publishMqttValue("matchName", match.matchName);
+          publishMqttValue("matchConfidence", String(match.matchConfidence));
           Serial.println("MQTT message sent: Open the door!");
         } else {
           notifyClients("Security issue! Match was not sent by MQTT because of invalid sensor pairing! This could potentially be an attack! If the sensor is new or has been replaced by you do a (re)pairing in settings page.");
@@ -1023,6 +1085,8 @@ void setup()
   Serial.begin(115200);
   while (!Serial);  // For Yun/Leo/Micro/Zero/...
   delay(100);
+  if (!mqttClient.setBufferSize(1024))
+    Serial.println("Could not allocate MQTT packet buffer for status JSON.");
 
   // initialize GPIOs
   pinMode(doorbellOutputPin, OUTPUT); 
@@ -1117,6 +1181,8 @@ void loop()
         mqttReconnectPreviousMillis = currentMillis;
       }
       mqttClient.loop();
+      if (mqttClient.connected() && (currentMillis - lastMqttStatusPublishMillis >= mqttStatusPublishIntervalMillis))
+        publishMqttStatus();
     }
   }
 
@@ -1158,16 +1224,16 @@ void loop()
     String mqttRootTopic = settingsManager.getAppSettings().mqttRootTopic;
     if (i1 != customInput1Value) {
         if (i1)
-          mqttClient.publish((String(mqttRootTopic) + "/customInput1").c_str(), "on");      
+          mqttClient.publish((String(mqttRootTopic) + "/customInput1").c_str(), "on", true);
         else
-          mqttClient.publish((String(mqttRootTopic) + "/customInput1").c_str(), "off");      
+          mqttClient.publish((String(mqttRootTopic) + "/customInput1").c_str(), "off", true);
     }
 
     if (i2 != customInput2Value) {
         if (i2)
-          mqttClient.publish((String(mqttRootTopic) + "/customInput2").c_str(), "on");      
+          mqttClient.publish((String(mqttRootTopic) + "/customInput2").c_str(), "on", true);
         else
-          mqttClient.publish((String(mqttRootTopic) + "/customInput2").c_str(), "off");  
+          mqttClient.publish((String(mqttRootTopic) + "/customInput2").c_str(), "off", true);
     }
 
     customInput1Value = i1;
