@@ -21,9 +21,10 @@ This fork is based on the original [FingerprintDoorbell project by frickelzeugs]
 - **Loop-free ring lock:** the `disableRing` command is no longer echoed back to the same topic, preventing repeated status messages.
 - **Longer event history:** the WebUI keeps the latest 50 log entries in a scrollable panel.
 - **MQTT connection indicator:** the Settings page shows whether the broker is currently connected.
+- **Ring button LED profiles:** select effect (always on, breathing or off) and color (red, blue or purple) separately for normal operation, IgnoreTouchRing and disabled-ring states. Wi-Fi setup, error, touch, match and enrollment signals remain fixed and are documented in Ring Button Settings.
 - **Checkmk status API:** `/api/status` provides read-only JSON without credentials, including health and reasons, uptime, free heap, reset reason, Wi-Fi signal, MQTT state/error, sensor state, ring lock and syslog configuration.
 - **rsyslog forwarding:** optional UDP forwarding of central status messages, configurable from the Settings page.
-- **Settings navigation:** settings are grouped by WebUI, MQTT, system time and rsyslog; the Status JSON endpoint is linked from the main menu.
+- **Settings navigation:** Network Settings and Ring Button Settings are separate pages. Sensor pairing and deleting fingerprints are on the ring page; the Status JSON endpoint is linked from the main menu.
 - **Build dependency fixes:** PlatformIO dependencies that disappeared from the registry are referenced through available sources.
 
 The firmware version in this fork is `0.5awi`.
@@ -84,7 +85,7 @@ download [here](https://raw.githubusercontent.com/frickelzeugs/FingerprintDoorbe
 - firmware.bin
 - spiffs.bin
 
-contained in the [Release packages](https://github.com/frickelzeugs/FingerprintDoorbell/releases)
+Download the images from this fork's [Release packages](https://github.com/AchimWilden/FingerprintDoorbell/releases).
 
 ### Flashing
 Copy all 5 files in a local folder, open your command line/shell, navigate to this folder and execute:
@@ -142,7 +143,7 @@ Your device should now boot up and the LED ring should start flashing slowly red
 If you want to build the firmware on your own (e.g. if you want to modify the code or you don't trust binaries) please follow the instructions below. I don't want to go into details here and assume that you already have experience with IDEs or using Git repos:
 * Download and install [Visual Studio Code and PlattformIO Extension](https://platformio.org/platformio-ide).
 * Install [Git](https://git-scm.com/downloads) if you don't have already
-* Clone this GitHub repo and open the project workspace in VS Code (you can do this in one step from within VS Code)
+* Clone this GitHub repo and open the project folder in VS Code (you can do this in one step from within VS Code)
 * Open the PlatformIO extension from the left sided toolbar and from the "Project Tasks" tree choose
   * esp32doit-devkit-v1 -> General -> Build (creates firmware.bin)
   * esp32doit-devkit-v1 -> Platform -> Build Filesystem Image (creates spiffs.bin containing HTML and CSS files)

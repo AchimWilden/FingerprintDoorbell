@@ -2,6 +2,7 @@
 #define SETTINGSMANAGER_H
 
 #include <Preferences.h>
+#include <stdint.h>
 #include "global.h"
 
 struct WifiSettings {    
@@ -20,6 +21,12 @@ struct AppSettings {
     bool syslogEnabled = false;
     String syslogServer = "";
     uint16_t syslogPort = 514;
+    uint8_t normalLedEffect = 1;
+    uint8_t normalLedColor = 2;
+    uint8_t ignoreTouchLedEffect = 3;
+    uint8_t ignoreTouchLedColor = 2;
+    uint8_t ringDisabledLedEffect = 3;
+    uint8_t ringDisabledLedColor = 3;
     String sensorPin = "00000000";
     String sensorPairingCode = "";
     bool   sensorPairingValid = false;

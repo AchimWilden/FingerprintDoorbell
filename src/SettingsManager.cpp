@@ -26,6 +26,12 @@ bool SettingsManager::loadAppSettings() {
         appSettings.syslogEnabled = preferences.getBool("syslogEnabled", false);
         appSettings.syslogServer = preferences.getString("syslogServer", String(""));
         appSettings.syslogPort = preferences.getUShort("syslogPort", 514);
+        appSettings.normalLedEffect = preferences.getUChar("normalLedEffect", 1);
+        appSettings.normalLedColor = preferences.getUChar("normalLedColor", 2);
+        appSettings.ignoreTouchLedEffect = preferences.getUChar("ignoreTouchLedEffect", 3);
+        appSettings.ignoreTouchLedColor = preferences.getUChar("ignoreTouchLedColor", 2);
+        appSettings.ringDisabledLedEffect = preferences.getUChar("ringDisabledLedEffect", 3);
+        appSettings.ringDisabledLedColor = preferences.getUChar("ringDisabledLedColor", 3);
         appSettings.sensorPin = preferences.getString("sensorPin", "00000000");
         appSettings.sensorPairingCode = preferences.getString("pairingCode", "");
         appSettings.sensorPairingValid = preferences.getBool("pairingValid", false);
@@ -57,6 +63,12 @@ void SettingsManager::saveAppSettings() {
     preferences.putBool("syslogEnabled", appSettings.syslogEnabled);
     preferences.putString("syslogServer", appSettings.syslogServer);
     preferences.putUShort("syslogPort", appSettings.syslogPort);
+    preferences.putUChar("normalLedEffect", appSettings.normalLedEffect);
+    preferences.putUChar("normalLedColor", appSettings.normalLedColor);
+    preferences.putUChar("ignoreTouchLedEffect", appSettings.ignoreTouchLedEffect);
+    preferences.putUChar("ignoreTouchLedColor", appSettings.ignoreTouchLedColor);
+    preferences.putUChar("ringDisabledLedEffect", appSettings.ringDisabledLedEffect);
+    preferences.putUChar("ringDisabledLedColor", appSettings.ringDisabledLedColor);
     preferences.putString("sensorPin", appSettings.sensorPin);
     preferences.putString("pairingCode", appSettings.sensorPairingCode);
     preferences.putBool("pairingValid", appSettings.sensorPairingValid);
