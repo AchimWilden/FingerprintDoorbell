@@ -85,7 +85,7 @@ download [here](https://raw.githubusercontent.com/frickelzeugs/FingerprintDoorbe
 - firmware.bin
 - spiffs.bin
 
-contained in the [Release packages](https://github.com/frickelzeugs/FingerprintDoorbell/releases)
+Download the images from this fork's [Release packages](https://github.com/AchimWilden/FingerprintDoorbell/releases).
 
 ### Flashing
 Copy all 5 files in a local folder, open your command line/shell, navigate to this folder and execute:
@@ -143,7 +143,7 @@ Your device should now boot up and the LED ring should start flashing slowly red
 If you want to build the firmware on your own (e.g. if you want to modify the code or you don't trust binaries) please follow the instructions below. I don't want to go into details here and assume that you already have experience with IDEs or using Git repos:
 * Download and install [Visual Studio Code and PlattformIO Extension](https://platformio.org/platformio-ide).
 * Install [Git](https://git-scm.com/downloads) if you don't have already
-* Clone this GitHub repo and open the project workspace in VS Code (you can do this in one step from within VS Code)
+* Clone this GitHub repo and open the project folder in VS Code (you can do this in one step from within VS Code)
 * Open the PlatformIO extension from the left sided toolbar and from the "Project Tasks" tree choose
   * esp32doit-devkit-v1 -> General -> Build (creates firmware.bin)
   * esp32doit-devkit-v1 -> Platform -> Build Filesystem Image (creates spiffs.bin containing HTML and CSS files)
